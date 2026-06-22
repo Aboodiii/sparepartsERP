@@ -1,0 +1,6 @@
+frontend/
+spareparts-importer/
+*.xlsx
+read_excel.mjs
+walkthrough.md
+TOOLS-CHEATSHEET.md

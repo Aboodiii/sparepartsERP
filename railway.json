@@ -1,0 +1,8 @@
+{
+  "build": {
+    "builder": "nixpacks",
+    "nixPackages": ["openssl"],
+    "buildCommand": "cd backend && npm install && npx prisma db push && npx prisma db seed",
+    "startCommand": "cd backend && npm start"
+  }
+}
