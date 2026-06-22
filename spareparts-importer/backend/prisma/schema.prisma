@@ -1,0 +1,56 @@
+// ---------------------------------------------------------------------------
+// Prisma schema = the single source of truth for your database.
+// You describe tables as "models" here, then run `prisma db push` and Prisma
+// creates the SQLite tables for you. Change a model -> push again -> done.
+// Docs: https://www.prisma.io/docs
+// ---------------------------------------------------------------------------
+
+datasource db {
+  provider = "sqlite" // file-based DB, zero install. Swap to "postgresql" later.
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// A foreign supplier we import parts from (China, UAE, Japan, India, etc.)
+model Supplier {
+  id            Int      @id @default(autoincrement())
+  name          String
+  country       String
+  contactPerson String?
+  phone         String?
+  email         String?
+  parts         Part[] // one supplier -> many parts (the "relation")
+  createdAt     DateTime @default(now())
+}
+
+// A spare part in the catalogue / warehouse.
+model Part {
+  id              Int       @id @default(autoincrement())
+  partNumber      String    @unique
+  name            String
+  brand           String?
+  category        String? // e.g. Engine, Brakes, Electrical, Filters
+  vehicleMake     String? // e.g. Toyota, Isuzu, Hyundai
+  unit            String    @default("pcs")
+  costPrice       Float     @default(0) // import cost in ETB
+  sellingPrice    Float     @default(0)
+  quantityInStock Int       @default(0)
+  reorderLevel    Int       @default(5) // warn when stock drops below this
+  supplierId      Int?
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+  createdAt       DateTime  @default(now())
+}
+
+// A local buyer: garage, retailer or wholesaler.
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String   @default("Retail") // Garage | Retail | Wholesale
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+}

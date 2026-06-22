@@ -1,0 +1,147 @@
+// ---------------------------------------------------------------------------
+// Prisma schema = the single source of truth for your database.
+// Docs: https://www.prisma.io/docs
+// ---------------------------------------------------------------------------
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// A foreign supplier we import parts from (China, UAE, Japan, India, etc.)
+model Supplier {
+  id            Int        @id @default(autoincrement())
+  name          String
+  country       String
+  contactPerson String?
+  phone         String?
+  email         String?
+  parts         Part[]
+  proformas     Proforma[]
+  createdAt     DateTime   @default(now())
+}
+
+// A spare part in the catalogue / warehouse.
+model Part {
+  id              Int            @id @default(autoincrement())
+  partNumber      String         @unique
+  name            String
+  brand           String?
+  category        String?
+  vehicleMake     String?
+  unit            String         @default("pcs")
+  costPrice       Float          @default(0)
+  sellingPrice    Float          @default(0)
+  quantityInStock Int            @default(0)
+  reorderLevel    Int            @default(5)
+  supplierId      Int?
+  supplier        Supplier?      @relation(fields: [supplierId], references: [id])
+  shipmentItems   ShipmentItem[]
+  createdAt       DateTime       @default(now())
+}
+
+// A local buyer: garage, retailer or wholesaler.
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String   @default("Retail")
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// PRESALES — Proforma Invoice from supplier
+// ---------------------------------------------------------------------------
+
+model Proforma {
+  id              Int            @id @default(autoincrement())
+  referenceNumber String?
+  invoiceDate     String?        // stored as string for flexibility
+  supplierId      Int?
+  supplier        Supplier?      @relation(fields: [supplierId], references: [id])
+  currency        String         @default("USD")
+  exchangeRate    Float          @default(125)  // USD -> ETB
+  notes           String?
+  // status: DRAFT | NEGOTIATING | CONFIRMED | RECEIVED
+  status          String         @default("DRAFT")
+  items           ProformaItem[]
+  shipment        Shipment?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model ProformaItem {
+  id              Int      @id @default(autoincrement())
+  proformaId      Int
+  proforma        Proforma @relation(fields: [proformaId], references: [id], onDelete: Cascade)
+  partNumber      String?
+  description     String?
+  brand           String?
+  category        String?
+  vehicleMake     String?
+  unit            String?  @default("pcs")
+  quantity        Float    @default(0)
+  supplierPrice   Float    @default(0)  // original price from Excel (USD)
+  negotiatedPrice Float?               // edited negotiated price (USD)
+  notes           String?
+  createdAt       DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// SHIPMENTS — one shipment per confirmed proforma
+// ---------------------------------------------------------------------------
+
+model Shipment {
+  id         Int      @id @default(autoincrement())
+  proformaId Int      @unique
+  proforma   Proforma @relation(fields: [proformaId], references: [id])
+
+  // status: IN_TRANSIT | CUSTOMS | DELIVERED
+  status String @default("IN_TRANSIT")
+
+  // ---- Shipping costs (stored in USD, converted via proforma exchange rate) ----
+  freightCostUSD   Float @default(0)
+  insuranceCostUSD Float @default(0)
+
+  // ---- Ethiopian import tax rates (%) ----
+  importDutyRate   Float @default(10)   // % of CIF
+  exciseTaxRate    Float @default(0)    // % of (CIF + Duty)
+  // VAT is always 15% in Ethiopia
+  // Surtax is always 10%
+  // Withholding is always 3%
+
+  // ---- Other local charges (ETB) ----
+  portHandlingETB    Float @default(0)
+  clearingAgentETB   Float @default(0)
+  inlandTransportETB Float @default(0)
+  brokerageETB       Float @default(0)
+  otherChargesETB    Float @default(0)
+  otherChargesNote   String?
+
+  receivedDate String?
+  notes        String?
+
+  items     ShipmentItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model ShipmentItem {
+  id               Int      @id @default(autoincrement())
+  shipmentId       Int
+  shipment         Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  partId           Int?
+  part             Part?    @relation(fields: [partId], references: [id])
+  partNumber       String?
+  description      String?
+  quantityReceived Float    @default(0)
+  unitCostUSD      Float    @default(0)   // negotiated price used
+  landedCostETB    Float    @default(0)   // allocated landed cost per unit
+  createdAt        DateTime @default(now())
+}
