@@ -13,7 +13,13 @@ import financeRouter from './routes/finance.js';
 
 const app = express();
 
-app.use(cors());          // let the React app (different port) call this API
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    /\.vercel\.app$/,
+  ],
+  credentials: true,
+}));
 app.use(express.json());  // parse JSON request bodies into req.body
 
 // Health check — open http://localhost:4000/api/health to confirm it's up.
