@@ -1,0 +1,8 @@
+{
+  "name": "sparepartsERP",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd backend && npm install && npx prisma generate && npx prisma db push && node prisma/seed.js || true",
+    "start": "cd backend && npm start"
+  }
+}
